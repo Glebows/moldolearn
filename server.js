@@ -1,15 +1,14 @@
 // server.js (Final version with robust UPSERT logic)
 // In server.js, ganz oben
-// In server.js, ganz oben
+const pgSession = require('connect-pg-simple')(session);
 require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const path = require('path');
-const session = require('express-session'); // ZUERST 'session' definieren
+const session = require('express-session');
 
 const app = express();
-app.set('trust proxy', 1); // <-- DIESE ZEILE HINZUFÜGEN
 const port = 3000;
 
 const pool = new Pool({
@@ -43,12 +42,22 @@ async function setupDatabase() {
 }
 setupDatabase();
 
-// ALTER CODE in server.js
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, '')));
+// NEUER CODE in server.js
 app.use(session({
+    store: new pgSession({
+        pool: pool, // Ihre bestehende Datenbankverbindung
+        tableName: 'session' // Name der Tabelle, die automatisch erstellt wird
+    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production', // Wichtig für den Live-Betrieb
+        maxAge: 24 * 60 * 60 * 1000 // 1 Tag
+    }
 }));
 // === Routen ===
 
