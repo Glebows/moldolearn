@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moldolearn - Lerne Moldawisch fließend</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <a href="/" class="logo" style="text-decoration: none; color: inherit;">
+            <i class="fas fa-language" aria-hidden="true"></i>
+            <span>Moldolearn</span>
+        </a>
+        <button class="menu-toggle" id="menu-toggle" aria-label="Navigation öffnen">
+            <i class="fas fa-bars" aria-hidden="true"></i>
+        </button>
+        <div class="user-stats">
+    <div class="stat" title="Tägliche Serie">
+        <i class="fas fa-fire" aria-hidden="true"></i>
+        <span id="streak-count">0</span>
+    </div>
+    <div class="stat" title="Erfahrungspunkte">
+        <i class="fas fa-gem" aria-hidden="true"></i>
+        <span id="xp-count">0</span>
+    </div>
+    <div class="stat hearts" title="Verbleibende Herzen">
+        <i class="fas fa-heart" aria-hidden="true"></i>
+        <span id="hearts-count">5</span>
+    </div>
+
+    <div id="logged-out-view" style="display: flex; align-items: center; gap: 10px;">
+        <a href="/login" class="check-button" style="padding: 8px 15px; font-size: 0.9rem; text-decoration: none;">Anmelden</a>
+    </div>
+
+    <div id="logged-in-view" style="display: none; align-items: center; gap: 10px;">
+        <button id="account-btn" class="theme-toggle" aria-label="Konto">
+            <i class="fas fa-user" aria-hidden="true"></i>
+        </button>
+        <button id="logout-btn" class="theme-toggle" aria-label="Abmelden">
+            <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+        </button>
+    </div>
+    
+    <button class="theme-toggle" id="theme-toggle" aria-label="Design wechseln">
+        <i class="fas fa-moon" aria-hidden="true"></i>
+    </button>
+</div>
+    </header>
+
+    <nav id="main-nav" role="navigation">
+        <button id="nav-home" class="active" aria-label="Lektionen">
+            <i class="fas fa-book" aria-hidden="true"></i> 
+            <span>Lektionen</span>
+        </button>
+        <button id="nav-vocab" aria-label="Vokabeln">
+            <i class="fas fa-layer-group" aria-hidden="true"></i> 
+            <span>Vokabeln</span>
+        </button>
+        <button id="nav-grammar" aria-label="Grammatik">
+            <i class="fas fa-puzzle-piece" aria-hidden="true"></i> 
+            <span>Grammatik</span>
+        </button>
+        <button id="nav-conversation" aria-label="Konversation">
+            <i class="fas fa-comments" aria-hidden="true"></i> 
+            <span>Konversation</span>
+        </button>
+        <button id="nav-pronunciation" aria-label="Aussprache">
+            <i class="fas fa-microphone" aria-hidden="true"></i> 
+            <span>Aussprache</span>
+        </button>
+        <button id="nav-progress" aria-label="Fortschritt">
+            <i class="fas fa-chart-line" aria-hidden="true"></i> 
+            <span>Fortschritt</span>
+        </button>
+    </nav>
+
+    <main id="app-container" role="main">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Lade Inhalte...</p>
+        </div>
+    </main>
+
+    <div id="settings-modal" class="modal" role="dialog" aria-labelledby="modal-title" aria-hidden="true">
+        <div class="modal-content">
+            <span class="close" aria-label="Schließen">&times;</span>
+            <h2 id="modal-title">Einstellungen</h2>
+            <p>Hier können Sie Ihre Lerneinstellungen anpassen.</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <!-- Ko-fi Support Button -->
+    <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
+    <script>
+      kofiWidgetOverlay.draw('moldowalearn', {
+        'type': 'floating-chat',
+        'floating-chat.donateButton.text': 'Support me',
+        'floating-chat.donateButton.background-color': '#00b9fe',
+        'floating-chat.donateButton.text-color': '#fff'
+      });
+    </script>
+</body>
+</html>
