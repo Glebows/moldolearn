@@ -7,7 +7,6 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const session = require('express-session'); // ZUERST 'session' definieren
-const pgSession = require('connect-pg-simple')(session); // DANN an pgSession übergeben
 
 const app = express();
 app.set('trust proxy', 1); // <-- DIESE ZEILE HINZUFÜGEN
@@ -44,22 +43,12 @@ async function setupDatabase() {
 }
 setupDatabase();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '')));
-// NEUER CODE in server.js
+// ALTER CODE in server.js
 app.use(session({
-    store: new pgSession({
-        pool: pool, // Ihre bestehende Datenbankverbindung
-        tableName: 'session' // Name der Tabelle, die automatisch erstellt wird
-    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { 
-        secure: process.env.NODE_ENV === 'production', // Wichtig für den Live-Betrieb
-        maxAge: 24 * 60 * 60 * 1000 // 1 Tag
-    }
+    cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 }));
 // === Routen ===
 
