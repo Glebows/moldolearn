@@ -10,6 +10,7 @@ const session = require('express-session'); // ZUERST 'session' definieren
 const pgSession = require('connect-pg-simple')(session); // DANN an pgSession übergeben
 
 const app = express();
+app.set('trust proxy', 1); // <-- DIESE ZEILE HINZUFÜGEN
 const port = 3000;
 
 const pool = new Pool({
