@@ -1,12 +1,13 @@
 // server.js (Final version with robust UPSERT logic)
 // In server.js, ganz oben
-const pgSession = require('connect-pg-simple')(session);
+// In server.js, ganz oben
 require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const path = require('path');
-const session = require('express-session');
+const session = require('express-session'); // ZUERST 'session' definieren
+const pgSession = require('connect-pg-simple')(session); // DANN an pgSession übergeben
 
 const app = express();
 const port = 3000;
