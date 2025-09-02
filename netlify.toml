@@ -1,16 +1,13 @@
 [build]
   command = "npm install"
   functions = "netlify/functions/"
-  # Sagt Netlify, wo die statischen HTML-Dateien liegen
-  publish = "moldowa/" 
 
-# Leitet API-Anfragen an den Server weiter
+# Leitet API-Anfragen und Formular-Posts an den Server weiter
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
-# Leitet Formular-Posts an den Server weiter
 [[redirects]]
   from = "/login"
   to = "/.netlify/functions/api/login"
