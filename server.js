@@ -157,7 +157,17 @@ app.get('/api/progress', isLoggedIn, async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     try {
         const result = await pool.query(`SELECT * FROM user_progress WHERE user_id = $1`, [req.session.user.id]);
-        res.json(result.rows[0] || {});
+        let row = result.rows[0] || {};
+        // Default-Werte für alle Felder, die null sein könnten
+        row.completed_lessons = row.completed_lessons || [];
+        row.xp = row.xp || 0;
+        row.streak = row.streak || 0;
+        row.hearts = row.hearts == null ? 5 : row.hearts;
+        row.difficult_words = row.difficult_words || [];
+        row.daily_goal = row.daily_goal || { completed: false, date: null };
+        row.badges = row.badges || [];
+        row.favorite_words = row.favorite_words || [];
+        res.json(row);
     } catch (err) {
         res.status(500).json({ error: 'Fortschritt konnte nicht geladen werden.' });
     }
