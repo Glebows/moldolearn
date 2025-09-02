@@ -847,11 +847,11 @@ const SHOP_ITEMS = [
         }
 
         exerciseHTML += `
-                <div id="feedback-container"></div>
-                <button class="check-button" id="check-answer" style="margin-top: 20px;" disabled>Überprüfen</button>
-                <button class="check-button" id="next-exercise" style="margin-top: 20px; display:none;">Weiter</button>
-            </div>
-        `;
+            <div id="feedback-container"></div>
+            <button class="check-button" id="check-answer" style="margin-top: 20px;" disabled>Überprüfen</button>
+            <button class="check-button" id="next-exercise" style="margin-top: 20px; display:none;">Weiter</button>
+        </div>
+    `;
         appContainer.innerHTML = exerciseHTML;
         
         const checkAnswerBtn = document.getElementById('check-answer');
@@ -878,7 +878,8 @@ const SHOP_ITEMS = [
             });
             input.addEventListener('keyup', (e) => {
                 if (e.key === 'Enter' && !checkAnswerBtn.disabled) {
-                    checkAnswer(exercise);
+                    // Statt checkAnswer(exercise): Simuliere Button-Klick!
+                    checkAnswerBtn.click();
                 }
             });
         } else if (exercise.type === 'matching-pairs') {
@@ -931,12 +932,27 @@ const SHOP_ITEMS = [
         checkAnswerBtn.addEventListener('click', async () => {
             await checkAnswer(exercise);
             checkAnswerBtn.style.display = "none";
+            // --- NEU: Letzte Frage? Button-Text und Verhalten anpassen ---
+            if (currentExerciseIndex === currentLesson.exercises.length - 1) {
+                nextBtn.textContent = "Fertig";
+            } else {
+                nextBtn.textContent = "Weiter";
+            }
             nextBtn.style.display = "";
             nextBtn.focus();
         });
         nextBtn.addEventListener('click', () => {
-            currentExerciseIndex++;
-            showExercise();
+            // --- NEU: Bei letzter Frage Abschlussseite anzeigen ---
+            if (currentExerciseIndex === currentLesson.exercises.length - 1) {
+                if (isPracticeSession) {
+                    completePracticeSession();
+                } else {
+                    completeLesson();
+                }
+            } else {
+                currentExerciseIndex++;
+                showExercise();
+            }
         });
     }
 
@@ -1098,20 +1114,31 @@ const SHOP_ITEMS = [
                 </div>
             </section>
         `;
-        let lessonCounter = 0;
-        let completedLessonsCount = userProgress.completedLessons ? userProgress.completedLessons.length : 0;
 
-    // Übungseinheit-Card: Immer anzeigen, unabhängig von Herzen
-    content += `
-        <section>
-            <div class="lesson-card practice-card" id="practice-session-card" style="cursor: pointer; border-color: var(--info-color); position:relative;">
-                <i class="fas fa-heart-pulse" aria-hidden="true"></i>
-                <h3>Übungseinheit</h3>
-                <p>Beantworte ${PRACTICE_SESSION_GOAL} Fragen richtig, um ein Herz zurückzugewinnen!</p>
-            </div>
-        </section>
-    `;
+        // --- NEU: Flache Liste aller Lektionen für die Reihenfolge ---
+        const allLessonsFlat = [];
+        db.courses.forEach(course => {
+            course.lessons.forEach(lesson => {
+                allLessonsFlat.push({ ...lesson, courseLevel: course.level, courseTitle: course.title });
+            });
+        });
 
+        // Anzahl abgeschlossener Lektionen (aus userProgress)
+        const completedLessonsCount = userProgress.completedLessons ? userProgress.completedLessons.length : 0;
+
+        // Übungseinheit-Card: Immer anzeigen, unabhängig von Herzen
+        content += `
+            <section>
+                <div class="lesson-card practice-card" id="practice-session-card" style="cursor: pointer; border-color: var(--info-color); position:relative;">
+                    <i class="fas fa-heart-pulse" aria-hidden="true"></i>
+                    <h3>Übungseinheit</h3>
+                    <p>Beantworte ${PRACTICE_SESSION_GOAL} Fragen richtig, um ein Herz zurückzugewinnen!</p>
+                </div>
+            </section>
+        `;
+
+        // --- Lektionen anzeigen, nur die ersten N+1 freischalten ---
+        let lessonGlobalIndex = 0;
         db.courses.forEach(course => {
             content += `
                 <section>
@@ -1121,38 +1148,16 @@ const SHOP_ITEMS = [
                     </h2>
                     <div class="lesson-grid">
             `;
-            
-            // --- Angepasst: Nur rumänisches Alphabet frei, dann das nächste ---
-            const completed = userProgress.completedLessons || [];
-            course.lessons.forEach((lesson, idx) => {
-                const isCompleted = completed.includes(lesson.id);
-                let isUnlocked = false;
-
-                if (course.level === "Start") {
-                    if (lesson.id === "alpha-l1") {
-                        isUnlocked = true;
-                    } else if (lesson.id === "alpha-l2") {
-                        isUnlocked = completed.includes("alpha-l1");
-                    } else {
-                        isUnlocked = false;
-                    }
-                } else {
-                    // Für alle anderen Kurse bleibt die alte Logik
-                    if (idx === 0) {
-                        isUnlocked = true;
-                    } else {
-                        const prevLesson = course.lessons[idx - 1];
-                        isUnlocked = completed.includes(prevLesson.id);
-                    }
-                }
-                if (isCompleted) isUnlocked = true;
-
+            course.lessons.forEach(lesson => {
+                const isCompleted = userProgress.completedLessons && userProgress.completedLessons.includes(lesson.id);
+                // Nur Lektionen mit Index <= completedLessonsCount sind freigeschaltet
+                const isLocked = lessonGlobalIndex > completedLessonsCount;
                 content += `
-                    <div class="lesson-card ${isCompleted ? 'completed' : ''} ${!isUnlocked ? 'locked' : ''}" 
+                    <div class="lesson-card ${isCompleted ? 'completed' : ''} ${isLocked ? 'locked' : ''}" 
                          data-lesson-id="${lesson.id}" 
-                         style="${!isUnlocked ? 'cursor: not-allowed; background-color: var(--light-bg);' : 'cursor: pointer;'}">
+                         style="${isLocked ? 'cursor: not-allowed; background-color: var(--light-bg);' : 'cursor: pointer;'}">
                         
-                        ${!isUnlocked ? '<i class="fas fa-lock" style="position: absolute; top: 20px; right: 20px; color: var(--text-light);"></i>' : ''}
+                        ${isLocked ? '<i class="fas fa-lock" style="position: absolute; top: 20px; right: 20px; color: var(--text-light);"></i>' : ''}
                         
                         <i class="${lesson.icon}" aria-hidden="true"></i>
                         <h3>${lesson.title}</h3>
@@ -1160,35 +1165,10 @@ const SHOP_ITEMS = [
                         <div style="margin-top: 15px; color: var(--accent-dark); font-weight: bold;">${lesson.xp} XP</div>
                     </div>
                 `;
-                lessonCounter++;
+                lessonGlobalIndex++;
             });
-
             content += '</div></section>';
         });
-
-        appContainer.innerHTML = content;
-
-        // Nur freigeschaltete Lektionen anklickbar machen
-        document.querySelectorAll('.lesson-card:not(.locked):not(.practice-card)').forEach(card => {
-            card.addEventListener('click', () => {
-                const lessonId = card.dataset.lessonId;
-                let lessonToStart;
-                for (const course of db.courses) {
-                    const foundLesson = course.lessons.find(l => l.id === lessonId);
-                    if (foundLesson) {
-                        lessonToStart = foundLesson;
-                        break;
-                    }
-                }
-                startGenericLesson(lessonToStart);
-            });
-        });
-
-        // Übungseinheit-Card: Immer aktivieren
-        const practiceCard = document.getElementById('practice-session-card');
-        if (practiceCard) {
-            practiceCard.addEventListener('click', startPracticeSession);
-        }
 
         // === SHOP BUTTON ===
         content += `
@@ -1199,7 +1179,35 @@ const SHOP_ITEMS = [
             </section>
         `;
 
+        // --- WICHTIG: Nur EINMAL innerHTML setzen, DANN Event-Listener! ---
         appContainer.innerHTML = content;
+
+        // Nur freigeschaltete Lektionen sind klickbar
+        let unlockedCount = completedLessonsCount + 1;
+        let unlockedLessonIds = allLessonsFlat.slice(0, unlockedCount).map(l => l.id);
+
+        document.querySelectorAll('.lesson-card:not(.locked):not(.practice-card)').forEach(card => {
+            const lessonId = card.dataset.lessonId;
+            if (unlockedLessonIds.includes(lessonId)) {
+                card.addEventListener('click', () => {
+                    let lessonToStart;
+                    for (const course of db.courses) {
+                        const foundLesson = course.lessons.find(l => l.id === lessonId);
+                        if (foundLesson) {
+                            lessonToStart = foundLesson;
+                            break;
+                        }
+                    }
+                    startGenericLesson(lessonToStart);
+                });
+            }
+        });
+
+        // Übungseinheit-Card: Immer aktivieren
+        const practiceCard = document.getElementById('practice-session-card');
+        if (practiceCard) {
+            practiceCard.addEventListener('click', startPracticeSession);
+        }
 
         // SHOP-Dialog öffnen
         document.getElementById('open-shop-btn').addEventListener('click', showShopModal);
@@ -1685,6 +1693,28 @@ function showShopModal() {
     }
     
     document.addEventListener('DOMContentLoaded', updateAndInitializeApp);
+
+    // Fortschritt auch beim Neuladen/Verlassen speichern (sicherer, wenn eingeloggt)
+window.addEventListener('beforeunload', function () {
+    // Nur speichern, wenn eingeloggt (userProgress existiert und hat XP)
+    if (userProgress && typeof userProgress.xp !== "undefined") {
+        const progressToSave = {
+            completed_lessons: userProgress.completedLessons,
+            xp: userProgress.xp,
+            hearts: userProgress.hearts,
+            streak: userProgress.streak,
+            difficult_words: userProgress.difficultWords,
+            daily_goal: userProgress.dailyGoal,
+            badges: userProgress.badges,
+            favorite_words: userProgress.favoriteWords
+        };
+        // sendBeacon ist synchron und blockiert das Entladen nicht
+        navigator.sendBeacon(
+            '/api/progress',
+            new Blob([JSON.stringify(progressToSave)], { type: 'application/json' })
+        );
+    }
+});
 
 
 })();
