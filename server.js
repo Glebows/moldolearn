@@ -96,9 +96,6 @@ function isLoggedIn(req, res, next) {
 }
 
 // --- МАРШРУТЫ ---
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
-
 app.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !email || !password) {

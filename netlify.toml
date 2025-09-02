@@ -1,8 +1,36 @@
 [build]
   command = "npm install"
   functions = "netlify/functions/"
+  # Sagt Netlify, wo die statischen HTML-Dateien liegen
+  publish = "moldowa/" 
+
+# Leitet API-Anfragen an den Server weiter
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# Leitet Formular-Posts an den Server weiter
+[[redirects]]
+  from = "/login"
+  to = "/.netlify/functions/api/login"
+  status = 200
+  force = true
 
 [[redirects]]
+  from = "/register"
+  to = "/.netlify/functions/api/register"
+  status = 200
+  force = true
+  
+[[redirects]]
+  from = "/logout"
+  to = "/.netlify/functions/api/logout"
+  status = 200
+  force = true
+
+# Fallback für alle anderen Routen, damit die App funktioniert
+[[redirects]]
   from = "/*"
-  to = "/.netlify/functions/api"
+  to = "/index.html"
   status = 200
