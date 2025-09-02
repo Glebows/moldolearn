@@ -1681,7 +1681,7 @@ function showShopModal() {
                     <div class="quiz-container text-center">
                         <h2>Willkommen bei Moldolearn!</h2>
                         <p>Bitte melden Sie sich an oder registrieren Sie sich, um Ihren Lernfortschritt zu speichern und auf Lektionen zuzugreifen.</p>
-                        <a href="/login" class="check-button" style="text-decoration: none; display: inline-block; width: auto; padding: 15px 30px; margin-top: 20px;">Anmelden / Registrieren</a>
+                        <a href="/login.html" class="check-button" style="text-decoration: none; display: inline-block; width: auto; padding: 15px 30px; margin-top: 20px;">Anmelden / Registrieren</a>
                     </div>`;
             }
         } catch (error) {
