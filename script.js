@@ -1122,20 +1122,29 @@ const SHOP_ITEMS = [
                     <div class="lesson-grid">
             `;
             
-            // --- NEU: Lektionen-Freischaltung ---
+            // --- Angepasst: Nur rumänisches Alphabet frei, dann das nächste ---
             const completed = userProgress.completedLessons || [];
             course.lessons.forEach((lesson, idx) => {
                 const isCompleted = completed.includes(lesson.id);
-                // Die erste Lektion ist immer freigeschaltet
                 let isUnlocked = false;
-                if (idx === 0) {
-                    isUnlocked = true;
+
+                if (course.level === "Start") {
+                    if (lesson.id === "alpha-l1") {
+                        isUnlocked = true;
+                    } else if (lesson.id === "alpha-l2") {
+                        isUnlocked = completed.includes("alpha-l1");
+                    } else {
+                        isUnlocked = false;
+                    }
                 } else {
-                    // Freigeschaltet, wenn die vorherige Lektion abgeschlossen ist
-                    const prevLesson = course.lessons[idx - 1];
-                    isUnlocked = completed.includes(prevLesson.id);
+                    // Für alle anderen Kurse bleibt die alte Logik
+                    if (idx === 0) {
+                        isUnlocked = true;
+                    } else {
+                        const prevLesson = course.lessons[idx - 1];
+                        isUnlocked = completed.includes(prevLesson.id);
+                    }
                 }
-                // Bereits abgeschlossene Lektionen bleiben freigeschaltet
                 if (isCompleted) isUnlocked = true;
 
                 content += `

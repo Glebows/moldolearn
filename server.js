@@ -219,4 +219,9 @@ app.post('/api/progress', isLoggedIn, async (req, res) => {
 });
 
 // --- ЗАПУСК СЕРВЕРА ---
-app.listen(port, () => console.log(`Сервер запущен на http://localhost:${port}`));
+// server.js (am Ende der Datei)
+// Entfernen oder auskommentieren Sie die app.listen-Zeile:
+// app.listen(port, () => console.log(`Server läuft auf http://localhost:${port}`));
+
+// Fügen Sie stattdessen diese Zeile hinzu, um Ihre App zu exportieren:
+module.exports = { app, pool };
