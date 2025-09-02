@@ -1,6 +1,6 @@
-// server.js (Finale Version für Netlify)
+// server.js (Полностью исправленная версия)
 
-// --- IMPORTE ---
+// --- ИМПОРТЫ ---
 require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
@@ -9,16 +9,17 @@ const path = require('path');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 
-// --- APP KONFIGURATION ---
+// --- КОНФИГУРАЦИЯ ПРИЛОЖЕНИЯ ---
 const app = express();
-app.set('trust proxy', 1); // Wichtig für Proxies wie Netlify
+app.set('trust proxy', 1);
 const port = process.env.PORT || 3000;
 
-// --- DATENBANK VERBINDUNG ---
+// --- ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
 });
 
+// ИЗМЕНЕНО: Обновлена функция настройки базы данных
 async function setupDatabase() {
     try {
         await pool.query(`
@@ -30,6 +31,8 @@ async function setupDatabase() {
             )
         `);
         
+        // ИЗМЕНЕНО: Добавлены новые колонки в user_progress
+        // Мы используем тип JSONB для хранения объектов и массивов, что очень удобно.
         await pool.query(`
             CREATE TABLE IF NOT EXISTS user_progress (
                 user_id INTEGER PRIMARY KEY,
@@ -44,19 +47,28 @@ async function setupDatabase() {
                 CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
+
+        // Таблица для сессий (необходима для connect-pg-simple)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS "session" (
+              "sid" varchar NOT NULL COLLATE "default",
+              "sess" json NOT NULL,
+              "expire" timestamp(6) NOT NULL
+            )
+            WITH (OIDS=FALSE);
+            ALTER TABLE "session" ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE;
+        `);
         
-        console.log('Erfolgreich mit der PostgreSQL-Datenbank verbunden, Tabellen sind bereit.');
+        console.log('Успешное подключение к PostgreSQL, таблицы готовы.');
     } catch (err) {
-        console.error('Fehler beim Einrichten der Datenbank:', err);
+        console.error('Ошибка при настройке базы данных:', err);
     }
 }
 setupDatabase();
 
-// --- MIDDLEWARE ---
+// --- ПРОМЕЖУТОЧНОЕ ПО (MIDDLEWARE) ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Hinweis: express.static ist hier weniger relevant, da Netlify die Dateien ausliefert,
-// aber es schadet nicht und ist nützlich für die lokale Entwicklung.
 app.use(express.static(path.join(__dirname, '')));
 
 app.use(session({
@@ -69,9 +81,9 @@ app.use(session({
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 Tage
+        httpOnly: true, // Рекомендуется для безопасности
+        sameSite: 'lax', // Рекомендуется для безопасности
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 дней
     }
 }));
 
@@ -79,16 +91,15 @@ function isLoggedIn(req, res, next) {
     if (req.session.user) {
         next();
     } else {
-        res.status(401).json({ error: 'Nicht authentifiziert' });
+        res.status(401).json({ error: 'Не аутентифицирован' });
     }
 }
 
-// --- ROUTEN FÜR FORMULAR-AKTIONEN ---
-
+// --- МАРШРУТЫ ---
 app.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !email || !password) {
-        return res.status(400).send('Bitte füllen Sie alle Felder aus.');
+        return res.status(400).send('Пожалуйста, заполните все поля.');
     }
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -96,14 +107,15 @@ app.post('/register', async (req, res) => {
         const userResult = await pool.query(userSql, [username, email, hashedPassword]);
         const newUserId = userResult.rows[0].id;
 
+        // Создаем начальный прогресс для нового пользователя
         const progressSql = `INSERT INTO user_progress (user_id) VALUES ($1)`;
         await pool.query(progressSql, [newUserId]);
 
-        console.log(`Neuer Benutzer '${username}' mit ID ${newUserId} erstellt.`);
+        console.log(`Новый пользователь '${username}' с ID ${newUserId} создан.`);
         res.redirect('/login.html');
     } catch (err) {
-        console.error("Registrierungsfehler:", err.message);
-        res.status(500).send('Fehler bei der Registrierung. E-Mail oder Benutzername eventuell schon vergeben.');
+        console.error("Ошибка регистрации:", err.message);
+        res.status(500).send('Ошибка при регистрации. Возможно, email или имя пользователя уже заняты.');
     }
 });
 
@@ -119,14 +131,14 @@ app.post('/login', async (req, res) => {
                 email: user.email,
                 username: user.username
             };
-            console.log(`Benutzer ${user.email} erfolgreich angemeldet.`);
+            console.log(`Пользователь ${user.email} успешно вошел в систему.`);
             res.redirect('/index.html');
         } else {
-            res.status(401).send('Falsche E-Mail oder falsches Passwort. <a href="/login.html">Erneut versuchen</a>');
+            res.status(401).send('Неверный email или пароль. <a href="/login">Попробовать снова</a>');
         }
     } catch (err) {
-        console.error("Login-Fehler:", err);
-        res.status(500).send('Serverfehler');
+        console.error("Ошибка входа:", err);
+        res.status(500).send('Ошибка сервера');
     }
 });
 
@@ -134,7 +146,7 @@ app.get('/logout', (req, res) => {
     req.session.destroy(() => res.redirect('/login.html'));
 });
 
-// --- API ROUTEN ---
+// --- API МАРШРУТЫ ---
 
 app.get('/api/session-status', (req, res) => {
     if (req.session.user) {
@@ -154,14 +166,21 @@ app.get('/api/progress', isLoggedIn, async (req, res) => {
         const result = await pool.query(`SELECT * FROM user_progress WHERE user_id = $1`, [req.session.user.id]);
         res.json(result.rows[0] || {});
     } catch (err) {
-        res.status(500).json({ error: 'Fortschritt konnte nicht geladen werden.' });
+        res.status(500).json({ error: 'Не удалось загрузить прогресс.' });
     }
 });
 
+// ИЗМЕНЕНО: Обновлен маршрут для сохранения полного прогресса
 app.post('/api/progress', isLoggedIn, async (req, res) => {
     const { 
-        completed_lessons, xp, hearts, streak, 
-        difficult_words, daily_goal, badges, favorite_words 
+        completed_lessons, 
+        xp, 
+        hearts, 
+        streak, 
+        difficult_words, 
+        daily_goal, 
+        badges, 
+        favorite_words 
     } = req.body;
     const userId = req.session.user.id;
 
@@ -183,19 +202,23 @@ app.post('/api/progress', isLoggedIn, async (req, res) => {
                 favorite_words = EXCLUDED.favorite_words;
         `;
         
+        // Передаем все 9 параметров в запрос
         await pool.query(sql, [
             userId, completed_lessons, xp, hearts, streak,
             difficult_words, daily_goal, badges, favorite_words
         ]);
         
-        res.json({ success: true, message: 'Fortschritt gespeichert.' });
+        res.json({ success: true, message: 'Прогресс сохранен.' });
     } catch (err) {
-        console.error("Fehler beim Speichern des Fortschritts:", err);
-        res.status(500).json({ error: 'Fortschritt konnte nicht gespeichert werden.' });
+        console.error("Ошибка сохранения прогресса:", err);
+        res.status(500).json({ error: 'Не удалось сохранить прогресс.' });
     }
 });
 
-// --- EXPORT FÜR NETLIFY ---
-// Die app.listen-Zeile wird in einer Serverless-Umgebung nicht benötigt.
-// Stattdessen exportieren wir die App für den Wrapper (api.js).
+// --- ЗАПУСК СЕРВЕРА ---
+// server.js (am Ende der Datei)
+// Entfernen oder auskommentieren Sie die app.listen-Zeile:
+// app.listen(port, () => console.log(`Server läuft auf http://localhost:${port}`));
+
+// Fügen Sie stattdessen diese Zeile hinzu, um Ihre App zu exportieren:
 module.exports = { app, pool };
