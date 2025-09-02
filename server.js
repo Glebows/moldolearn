@@ -1,26 +1,25 @@
-// server.js (Finale, korrigierte Version)
+// server.js (Полностью исправленная версия)
 
-// --- IMPORTE ---
+// --- ИМПОРТЫ ---
 require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const path = require('path');
-// GEÄNDERT: Korrekte Reihenfolge
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 
-// --- APP KONFIGURATION ---
+// --- КОНФИГУРАЦИЯ ПРИЛОЖЕНИЯ ---
 const app = express();
-// HINZUGEFÜGT: Wichtiger Fix für den Login auf Render
 app.set('trust proxy', 1);
-const port = process.env.PORT || 3000; // Port für Render angepasst
+const port = process.env.PORT || 3000;
 
-// --- DATENBANK VERBINDUNG ---
+// --- ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
 });
 
+// ИЗМЕНЕНО: Обновлена функция настройки базы данных
 async function setupDatabase() {
     try {
         await pool.query(`
@@ -28,10 +27,12 @@ async function setupDatabase() {
                 id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
-                account_type VARCHAR(255) DEFAULT 'free' NOT NULL,
-                username VARCHAR(255) -- HINZUGEFÜGT: Spalte für den Benutzernamen
+                username VARCHAR(255)
             )
         `);
+        
+        // ИЗМЕНЕНО: Добавлены новые колонки в user_progress
+        // Мы используем тип JSONB для хранения объектов и массивов, что очень удобно.
         await pool.query(`
             CREATE TABLE IF NOT EXISTS user_progress (
                 user_id INTEGER PRIMARY KEY,
@@ -39,22 +40,37 @@ async function setupDatabase() {
                 xp INTEGER DEFAULT 0,
                 streak INTEGER DEFAULT 0,
                 hearts INTEGER DEFAULT 5,
+                difficult_words TEXT[] DEFAULT ARRAY[]::TEXT[],
+                daily_goal JSONB DEFAULT '{"completed": false, "date": null}',
+                badges JSONB DEFAULT '[]',
+                favorite_words TEXT[] DEFAULT ARRAY[]::TEXT[],
                 CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         `);
-        console.log('Erfolgreich mit der PostgreSQL-Datenbank verbunden und Tabellen sind bereit.');
+
+        // Таблица для сессий (необходима для connect-pg-simple)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS "session" (
+              "sid" varchar NOT NULL COLLATE "default",
+              "sess" json NOT NULL,
+              "expire" timestamp(6) NOT NULL
+            )
+            WITH (OIDS=FALSE);
+            ALTER TABLE "session" ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE;
+        `);
+        
+        console.log('Успешное подключение к PostgreSQL, таблицы готовы.');
     } catch (err) {
-        console.error('Fehler beim Einrichten der Datenbank:', err);
+        console.error('Ошибка при настройке базы данных:', err);
     }
 }
 setupDatabase();
 
-// --- MIDDLEWARE ---
+// --- ПРОМЕЖУТОЧНОЕ ПО (MIDDLEWARE) ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '')));
 
-// GEÄNDERT: Session-Speicher mit PostgreSQL
 app.use(session({
     store: new pgSession({
         pool: pool,
@@ -65,44 +81,47 @@ app.use(session({
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 Tage
+        httpOnly: true, // Рекомендуется для безопасности
+        sameSite: 'lax', // Рекомендуется для безопасности
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 дней
     }
 }));
 
-// Middleware zur Überprüfung, ob der Nutzer eingeloggt ist
 function isLoggedIn(req, res, next) {
     if (req.session.user) {
         next();
     } else {
-        res.status(401).json({ error: 'Nicht authentifiziert' });
+        res.status(401).json({ error: 'Не аутентифицирован' });
     }
 }
 
-// --- ROUTEN ---
+// --- МАРШРУТЫ ---
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 
-// GEÄNDERT: /register Route speichert jetzt auch den Benutzernamen
 app.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
+    if (!username || !email || !password) {
+        return res.status(400).send('Пожалуйста, заполните все поля.');
+    }
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         const userSql = `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id`;
         const userResult = await pool.query(userSql, [username, email, hashedPassword]);
         const newUserId = userResult.rows[0].id;
 
+        // Создаем начальный прогресс для нового пользователя
         const progressSql = `INSERT INTO user_progress (user_id) VALUES ($1)`;
         await pool.query(progressSql, [newUserId]);
 
-        console.log(`Neuer Benutzer '${username}' wurde mit der ID ${newUserId} erstellt.`);
+        console.log(`Новый пользователь '${username}' с ID ${newUserId} создан.`);
         res.redirect('/login');
     } catch (err) {
-        console.error("Registrierungsfehler:", err.message);
-        res.status(500).send('Fehler bei der Registrierung. E-Mail oder Benutzername eventuell schon vergeben.');
+        console.error("Ошибка регистрации:", err.message);
+        res.status(500).send('Ошибка при регистрации. Возможно, email или имя пользователя уже заняты.');
     }
 });
 
-// GEÄNDERT: /login Route fügt den Benutzernamen zur Session hinzu
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -113,16 +132,16 @@ app.post('/login', async (req, res) => {
             req.session.user = {
                 id: user.id,
                 email: user.email,
-                account_type: user.account_type,
-                username: user.username // HINZUGEFÜGT
+                username: user.username
             };
-            console.log(`Benutzer ${user.email} erfolgreich angemeldet.`);
+            console.log(`Пользователь ${user.email} успешно вошел в систему.`);
             res.redirect('/');
         } else {
-            res.status(401).send('Falsche E-Mail oder falsches Passwort. <a href="/login">Erneut versuchen</a>');
+            res.status(401).send('Неверный email или пароль. <a href="/login">Попробовать снова</a>');
         }
     } catch (err) {
-        res.status(500).send('Serverfehler');
+        console.error("Ошибка входа:", err);
+        res.status(500).send('Ошибка сервера');
     }
 });
 
@@ -130,15 +149,14 @@ app.get('/logout', (req, res) => {
     req.session.destroy(() => res.redirect('/login'));
 });
 
-// --- API ROUTEN ---
+// --- API МАРШРУТЫ ---
 
-// GEÄNDERT: /api/session-status sendet jetzt auch den Benutzernamen
 app.get('/api/session-status', (req, res) => {
     if (req.session.user) {
         res.json({
             loggedIn: true,
             email: req.session.user.email,
-            username: req.session.user.username // HINZUGEFÜGT
+            username: req.session.user.username
         });
     } else {
         res.json({ loggedIn: false });
@@ -146,35 +164,59 @@ app.get('/api/session-status', (req, res) => {
 });
 
 app.get('/api/progress', isLoggedIn, async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store'); // Vereinfachter Cache-Header
+    res.setHeader('Cache-Control', 'no-store');
     try {
         const result = await pool.query(`SELECT * FROM user_progress WHERE user_id = $1`, [req.session.user.id]);
         res.json(result.rows[0] || {});
     } catch (err) {
-        res.status(500).json({ error: 'Fortschritt konnte nicht geladen werden.' });
+        res.status(500).json({ error: 'Не удалось загрузить прогресс.' });
     }
 });
 
+// ИЗМЕНЕНО: Обновлен маршрут для сохранения полного прогресса
 app.post('/api/progress', isLoggedIn, async (req, res) => {
-    const { completed_lessons, xp, hearts, streak } = req.body;
+    const { 
+        completed_lessons, 
+        xp, 
+        hearts, 
+        streak, 
+        difficult_words, 
+        daily_goal, 
+        badges, 
+        favorite_words 
+    } = req.body;
     const userId = req.session.user.id;
+
     try {
         const sql = `
-            INSERT INTO user_progress (user_id, completed_lessons, xp, hearts, streak)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO user_progress (
+                user_id, completed_lessons, xp, hearts, streak, 
+                difficult_words, daily_goal, badges, favorite_words
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (user_id) DO UPDATE SET
                 completed_lessons = EXCLUDED.completed_lessons,
                 xp = EXCLUDED.xp,
                 hearts = EXCLUDED.hearts,
-                streak = EXCLUDED.streak;
+                streak = EXCLUDED.streak,
+                difficult_words = EXCLUDED.difficult_words,
+                daily_goal = EXCLUDED.daily_goal,
+                badges = EXCLUDED.badges,
+                favorite_words = EXCLUDED.favorite_words;
         `;
-        await pool.query(sql, [userId, completed_lessons, xp, hearts, streak]);
-        res.json({ success: true, message: 'Fortschritt gespeichert.' });
+        
+        // Передаем все 9 параметров в запрос
+        await pool.query(sql, [
+            userId, completed_lessons, xp, hearts, streak,
+            difficult_words, daily_goal, badges, favorite_words
+        ]);
+        
+        res.json({ success: true, message: 'Прогресс сохранен.' });
     } catch (err) {
-        console.error("Fehler beim Speichern des Fortschritts:", err);
-        res.status(500).json({ error: 'Fortschritt konnte nicht gespeichert werden.' });
+        console.error("Ошибка сохранения прогресса:", err);
+        res.status(500).json({ error: 'Не удалось сохранить прогресс.' });
     }
 });
 
-// --- SERVER START ---
-app.listen(port, () => console.log(`Server läuft auf http://localhost:${port}`));
+// --- ЗАПУСК СЕРВЕРА ---
+app.listen(port, () => console.log(`Сервер запущен на http://localhost:${port}`));
