@@ -174,11 +174,21 @@ app.get('/api/progress', isLoggedIn, async (req, res) => {
 });
 
 app.post('/api/progress', isLoggedIn, async (req, res) => {
-    const { 
+    let { 
         completed_lessons, xp, hearts, streak, 
         difficult_words, daily_goal, badges, favorite_words 
     } = req.body;
     const userId = req.session.user.id;
+
+    // --- Sicherstellen, dass keine NULL/undefined Werte gespeichert werden ---
+    completed_lessons = Array.isArray(completed_lessons) ? completed_lessons : [];
+    difficult_words = Array.isArray(difficult_words) ? difficult_words : [];
+    favorite_words = Array.isArray(favorite_words) ? favorite_words : [];
+    badges = Array.isArray(badges) ? badges : [];
+    daily_goal = daily_goal && typeof daily_goal === 'object' ? daily_goal : { completed: false, date: null };
+    xp = typeof xp === 'number' ? xp : 0;
+    hearts = typeof hearts === 'number' ? hearts : 5;
+    streak = typeof streak === 'number' ? streak : 0;
 
     try {
         const sql = `
