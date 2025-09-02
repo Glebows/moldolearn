@@ -1,18 +1,16 @@
-// server.js (Finale Version für Netlify)
+// server.js (Finale, produktionsreife Version für Netlify)
 
 // --- IMPORTE ---
 require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
-const path = require('path');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 
 // --- APP KONFIGURATION ---
 const app = express();
-app.set('trust proxy', 1); // Wichtig für Proxies wie Netlify
-const port = process.env.PORT || 3000;
+app.set('trust proxy', 1); // Notwendig für Proxies wie Netlify/Render
 
 // --- DATENBANK VERBINDUNG ---
 const pool = new Pool({
@@ -55,9 +53,6 @@ setupDatabase();
 // --- MIDDLEWARE ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Hinweis: express.static ist hier weniger relevant, da Netlify die Dateien ausliefert,
-// aber es schadet nicht und ist nützlich für die lokale Entwicklung.
-app.use(express.static(path.join(__dirname, '')));
 
 app.use(session({
     store: new pgSession({
@@ -83,7 +78,7 @@ function isLoggedIn(req, res, next) {
     }
 }
 
-// --- ROUTEN FÜR FORMULAR-AKTIONEN ---
+// --- ROUTEN FÜR LOGIK & FORMULARE ---
 
 app.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
@@ -196,6 +191,4 @@ app.post('/api/progress', isLoggedIn, async (req, res) => {
 });
 
 // --- EXPORT FÜR NETLIFY ---
-// Die app.listen-Zeile wird in einer Serverless-Umgebung nicht benötigt.
-// Stattdessen exportieren wir die App für den Wrapper (api.js).
-module.exports = { app, pool };
+module.exports = { app };
