@@ -135,7 +135,7 @@ app.post('/login', async (req, res) => {
                 username: user.username
             };
             console.log(`Пользователь ${user.email} успешно вошел в систему.`);
-            res.redirect('/');
+            res.redirect('/index.html');
         } else {
             res.status(401).send('Неверный email или пароль. <a href="/login">Попробовать снова</a>');
         }
