@@ -90,15 +90,22 @@ app.post('/register', async (req, res) => {
     }
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const userSql = `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id`;
+        const userSql = `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, email, username`;
         const userResult = await pool.query(userSql, [username, email, hashedPassword]);
-        const newUserId = userResult.rows[0].id;
+        const newUser = userResult.rows[0];
 
         const progressSql = `INSERT INTO user_progress (user_id) VALUES ($1)`;
-        await pool.query(progressSql, [newUserId]);
+        await pool.query(progressSql, [newUser.id]);
 
-        console.log(`Neuer Benutzer '${username}' mit ID ${newUserId} erstellt.`);
-        res.redirect('/login.html');
+        // Automatisch einloggen nach Registrierung
+        req.session.user = {
+            id: newUser.id,
+            email: newUser.email,
+            username: newUser.username
+        };
+
+        console.log(`Neuer Benutzer '${username}' mit ID ${newUser.id} erstellt und eingeloggt.`);
+        res.redirect('/index.html');
     } catch (err) {
         console.error("Registrierungsfehler:", err.message);
         res.status(500).send('Fehler bei der Registrierung. E-Mail oder Benutzername eventuell schon vergeben.');
