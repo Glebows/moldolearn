@@ -1122,16 +1122,28 @@ const SHOP_ITEMS = [
                     <div class="lesson-grid">
             `;
             
-            course.lessons.forEach(lesson => {
-                const isCompleted = userProgress.completedLessons && userProgress.completedLessons.includes(lesson.id);
-                const isLocked = completedLessonsCount < lessonCounter;
+            // --- NEU: Lektionen-Freischaltung ---
+            const completed = userProgress.completedLessons || [];
+            course.lessons.forEach((lesson, idx) => {
+                const isCompleted = completed.includes(lesson.id);
+                // Die erste Lektion ist immer freigeschaltet
+                let isUnlocked = false;
+                if (idx === 0) {
+                    isUnlocked = true;
+                } else {
+                    // Freigeschaltet, wenn die vorherige Lektion abgeschlossen ist
+                    const prevLesson = course.lessons[idx - 1];
+                    isUnlocked = completed.includes(prevLesson.id);
+                }
+                // Bereits abgeschlossene Lektionen bleiben freigeschaltet
+                if (isCompleted) isUnlocked = true;
 
                 content += `
-                    <div class="lesson-card ${isCompleted ? 'completed' : ''} ${isLocked ? 'locked' : ''}" 
+                    <div class="lesson-card ${isCompleted ? 'completed' : ''} ${!isUnlocked ? 'locked' : ''}" 
                          data-lesson-id="${lesson.id}" 
-                         style="${isLocked ? 'cursor: not-allowed; background-color: var(--light-bg);' : 'cursor: pointer;'}">
+                         style="${!isUnlocked ? 'cursor: not-allowed; background-color: var(--light-bg);' : 'cursor: pointer;'}">
                         
-                        ${isLocked ? '<i class="fas fa-lock" style="position: absolute; top: 20px; right: 20px; color: var(--text-light);"></i>' : ''}
+                        ${!isUnlocked ? '<i class="fas fa-lock" style="position: absolute; top: 20px; right: 20px; color: var(--text-light);"></i>' : ''}
                         
                         <i class="${lesson.icon}" aria-hidden="true"></i>
                         <h3>${lesson.title}</h3>
@@ -1147,6 +1159,7 @@ const SHOP_ITEMS = [
 
         appContainer.innerHTML = content;
 
+        // Nur freigeschaltete Lektionen anklickbar machen
         document.querySelectorAll('.lesson-card:not(.locked):not(.practice-card)').forEach(card => {
             card.addEventListener('click', () => {
                 const lessonId = card.dataset.lessonId;
