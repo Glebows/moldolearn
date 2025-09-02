@@ -115,7 +115,7 @@ app.post('/register', async (req, res) => {
         await pool.query(progressSql, [newUserId]);
 
         console.log(`Новый пользователь '${username}' с ID ${newUserId} создан.`);
-        res.redirect('/login');
+        res.redirect('/login.html');
     } catch (err) {
         console.error("Ошибка регистрации:", err.message);
         res.status(500).send('Ошибка при регистрации. Возможно, email или имя пользователя уже заняты.');
@@ -146,7 +146,7 @@ app.post('/login', async (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/login'));
+    req.session.destroy(() => res.redirect('/login.html'));
 });
 
 // --- API МАРШРУТЫ ---
