@@ -79,7 +79,10 @@ function isLoggedIn(req, res, next) {
 }
 
 // --- ROUTEN FÜR LOGIK & FORMULARE ---
-
+// HINZUGEFÜGT: Eine "Sicherheits"-Route, die falsche Anfragen an /login korrekt umleitet
+app.get('/login', (req, res) => {
+    res.redirect('/login.html');
+});
 app.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !email || !password) {
